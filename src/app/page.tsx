@@ -1,7 +1,8 @@
 
 import { MasonryFeed } from "@/components/MasonryFeed";
 import { BottomNav } from "@/components/BottomNav";
-import { Bell, Search, Zap } from "lucide-react";
+import { Bell, Search, Zap, Camera } from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -17,7 +18,10 @@ export default function Home() {
           </h1>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <Link href="/upload" className="p-2 rounded-full hover:bg-white/5 text-primary transition-colors">
+            <Camera className="w-6 h-6" />
+          </Link>
           <button className="p-2 rounded-full hover:bg-white/5 text-foreground transition-colors">
             <Search className="w-5 h-5" />
           </button>

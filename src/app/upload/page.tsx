@@ -77,18 +77,39 @@ export default function UploadPage() {
         {!selectedImage ? (
           <div className="aspect-[4/5] rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center space-y-4 bg-white/[0.02]">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-              <ImageIcon className="w-8 h-8" />
+              <Camera className="w-8 h-8" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-bold text-foreground">Select a photo</p>
-              <p className="text-[11px] text-muted-foreground mt-1">Share your vibe with the community</p>
+              <p className="text-sm font-bold text-foreground">Take a Snap</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Capture the moment or pick from gallery</p>
             </div>
-            <label className="cursor-pointer">
-              <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-              <div className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-full text-xs font-bold transition-all border border-white/10">
-                Choose from device
-              </div>
-            </label>
+            
+            <div className="flex flex-col space-y-3 w-full px-10">
+              <label className="cursor-pointer">
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  capture="environment" 
+                  onChange={handleFileChange} 
+                />
+                <div className="w-full py-3 bg-primary text-primary-foreground text-center rounded-full text-xs font-bold transition-all shadow-lg shadow-primary/20">
+                  Open Camera
+                </div>
+              </label>
+              
+              <label className="cursor-pointer">
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                />
+                <div className="w-full py-3 bg-white/5 hover:bg-white/10 text-center rounded-full text-xs font-bold transition-all border border-white/10">
+                  Choose from Gallery
+                </div>
+              </label>
+            </div>
           </div>
         ) : (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
