@@ -1,0 +1,41 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "Urban neon street lighting",
+      "imageUrl": "https://picsum.photos/seed/101/600/800",
+      "imageHint": "neon city"
+    },
+    {
+      "id": "2",
+      "description": "Minimalist architectural design",
+      "imageUrl": "https://picsum.photos/seed/102/600/400",
+      "imageHint": "architecture"
+    },
+    {
+      "id": "3",
+      "description": "Vibrant mountain sunset",
+      "imageUrl": "https://picsum.photos/seed/103/600/900",
+      "imageHint": "nature sunset"
+    },
+    {
+      "id": "4",
+      "description": "Close up of futuristic tech",
+      "imageUrl": "https://picsum.photos/seed/104/600/600",
+      "imageHint": "cyberpunk technology"
+    },
+    {
+      "id": "5",
+      "description": "Artistic portrait with light play",
+      "imageUrl": "https://picsum.photos/seed/105/600/750",
+      "imageHint": "portrait light"
+    },
+    {
+      "id": "6",
+      "description": "Abstract color explosion",
+      "imageUrl": "https://picsum.photos/seed/106/600/500",
+      "imageHint": "abstract colors"
+    }
+  ]
+}
