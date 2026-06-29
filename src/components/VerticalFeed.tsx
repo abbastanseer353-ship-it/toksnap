@@ -1,26 +1,40 @@
 
 "use client";
 
-import React, { useState } from "react";
-import { Heart, MessageCircle, Share2, Music2, Plus } from "lucide-react";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+import React, { useState, useEffect, useRef } from "react";
+import { Heart, MessageCircle, Share2, Music2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const FeedItem = ({ image, index }: { image: any; index: number }) => {
+interface VideoData {
+  id: number;
+  user_id: string;
+  video_url: string;
+  caption: string;
+  created_at: string;
+}
+
+const FeedItem = ({ video }: { video: VideoData }) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(Math.floor(Math.random() * 9000) + 1000);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // In a real app, you'd use an Intersection Observer to play/pause
+  // For this MVP, we'll use autoPlay and loop
 
   return (
     <div className="relative h-screen w-full snap-start flex items-center justify-center bg-black overflow-hidden">
-      {/* Background Content (Simulated Video) */}
-      <img
-        src={image.imageUrl}
-        alt={image.description}
-        className="absolute inset-0 w-full h-full object-cover brightness-[0.8]"
-        data-ai-hint={image.imageHint}
+      {/* Real Video Content */}
+      <video
+        ref={videoRef}
+        src={video.video_url}
+        className="absolute inset-0 w-full h-full object-cover"
+        loop
+        muted
+        autoPlay
+        playsInline
       />
 
-      {/* Overlay Gradients */}
+      {/* Overlay Gradients for readability */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
 
       {/* Content Overlay */}
@@ -29,18 +43,22 @@ const FeedItem = ({ image, index }: { image: any; index: number }) => {
           {/* Left Side: Info */}
           <div className="flex-1 max-w-[80%] space-y-3">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full border border-white/20 overflow-hidden">
-                <img src={`https://picsum.photos/seed/${image.id}/100/100`} className="w-full h-full object-cover" alt="avatar" />
+              <div className="w-8 h-8 rounded-full border border-white/20 overflow-hidden bg-white/10">
+                <img 
+                  src={`https://picsum.photos/seed/${video.user_id}/100/100`} 
+                  className="w-full h-full object-cover" 
+                  alt="avatar" 
+                />
               </div>
-              <h3 className="font-headline font-bold text-base text-white">@user_{image.id}</h3>
+              <h3 className="font-headline font-bold text-base text-white">@user_{video.user_id}</h3>
               <button className="bg-primary text-primary-foreground px-2 py-0.5 rounded text-[10px] font-bold">Follow</button>
             </div>
             <p className="text-sm text-white/90 line-clamp-2 leading-relaxed">
-              {image.description} #vibe #trending #toksnap
+              {video.caption}
             </p>
             <div className="flex items-center space-x-2 text-white/70">
               <Music2 className="w-3.5 h-3.5 animate-pulse-subtle" />
-              <span className="text-xs font-medium truncate italic">Original Sound - artist_{image.id}</span>
+              <span className="text-xs font-medium truncate italic">Original Sound - TokSnap User</span>
             </div>
           </div>
 
@@ -71,7 +89,7 @@ const FeedItem = ({ image, index }: { image: any; index: number }) => {
             </button>
 
             <div className="w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden animate-[spin_4s_linear_infinite] mt-2">
-              <img src={`https://picsum.photos/seed/music-${image.id}/50/50`} className="w-full h-full object-cover" alt="vinyl" />
+              <img src={`https://picsum.photos/seed/music-${video.id}/50/50`} className="w-full h-full object-cover" alt="vinyl" />
             </div>
           </div>
         </div>
@@ -81,18 +99,45 @@ const FeedItem = ({ image, index }: { image: any; index: number }) => {
 };
 
 export function VerticalFeed() {
-  // Use real data or placeholders
-  const feedItems = PlaceHolderImages.length > 0 ? [...PlaceHolderImages, ...PlaceHolderImages] : [];
+  const [videos, setVideos] = useState<VideoData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchVideos() {
+      try {
+        const response = await fetch('/api/videos');
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setVideos(data);
+        }
+      } catch (error) {
+        console.error("Failed to load videos", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchVideos();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-black text-white/40 space-y-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-xs font-bold uppercase tracking-widest">Loading Snaps...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black">
-      {feedItems.length > 0 ? (
-        feedItems.map((img, idx) => (
-          <FeedItem key={`${img.id}-${idx}`} image={img} index={idx} />
+      {videos.length > 0 ? (
+        videos.map((video) => (
+          <FeedItem key={video.id} video={video} />
         ))
       ) : (
-        <div className="h-full flex items-center justify-center text-white/40">
-          No snaps yet. Be the first to post!
+        <div className="h-full flex flex-col items-center justify-center text-white/40 p-10 text-center space-y-4">
+          <p className="text-lg font-headline font-bold text-white/60">No snaps found</p>
+          <p className="text-sm">Be the first to share a moment with the community!</p>
         </div>
       )}
     </div>
