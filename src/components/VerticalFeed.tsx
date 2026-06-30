@@ -19,9 +19,9 @@ const FeedItem = ({ video }: { video: VideoData }) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(video.likes_count || 0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [showHeart, setShowHeart] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Check if the URL is an image or video
   const isVideo = video.video_url.match(/\.(mp4|webm|ogg|mov)$/i) || !video.video_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
 
   const togglePlay = () => {
@@ -41,6 +41,11 @@ const FeedItem = ({ video }: { video: VideoData }) => {
     const newCount = isAdding ? likes + 1 : Math.max(0, likes - 1);
     setLikes(newCount);
 
+    if (isAdding) {
+      setShowHeart(true);
+      setTimeout(() => setShowHeart(false), 800);
+    }
+
     try {
       const { error } = await supabase
         .from('videos')
@@ -50,6 +55,7 @@ const FeedItem = ({ video }: { video: VideoData }) => {
       if (error) throw error;
     } catch (err) {
       console.error("Like update failed:", err);
+      // Fallback
       setLiked(!isAdding);
       setLikes(likes);
     }
@@ -60,7 +66,7 @@ const FeedItem = ({ video }: { video: VideoData }) => {
       navigator.share({
         title: 'TokSnap',
         text: video.caption,
-        url: window.location.href,
+        url: window.location.origin,
       }).catch(console.error);
     }
   };
@@ -93,7 +99,14 @@ const FeedItem = ({ video }: { video: VideoData }) => {
         />
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none" />
+      {/* Floating Big Heart Animation */}
+      {showHeart && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 animate-bounce">
+          <Heart className="w-32 h-32 text-primary fill-primary opacity-80" />
+        </div>
+      )}
+
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70 pointer-events-none" />
       
       <div className="absolute inset-0 flex flex-col justify-end p-5 pb-32 pointer-events-none">
         <div className="flex justify-between items-end">
@@ -107,22 +120,22 @@ const FeedItem = ({ video }: { video: VideoData }) => {
                 />
               </div>
               <div>
-                <h3 className="font-headline font-bold text-base text-white text-shadow-sm">@user_{video.user_id.slice(0, 5)}</h3>
+                <h3 className="font-headline font-bold text-base text-white text-shadow-sm">@user_{video.user_id.slice(-4)}</h3>
                 <div className="flex items-center space-x-1 text-primary">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                  <Music2 className="w-3 h-3 animate-spin-slow" />
                   <span className="text-[10px] font-bold uppercase tracking-wider">{isVideo ? 'Original Sound' : 'Snap Moment'}</span>
                 </div>
               </div>
             </div>
-            <p className="text-sm text-white/90 line-clamp-2 leading-relaxed text-shadow-sm">{video.caption}</p>
+            <p className="text-sm text-white/90 line-clamp-2 leading-relaxed text-shadow-sm font-medium">{video.caption}</p>
           </div>
 
           <div className="flex flex-col items-center space-y-6 pointer-events-auto">
-            <button onClick={handleLike} className="flex flex-col items-center space-y-1 group">
+            <button onClick={handleLike} className="flex flex-col items-center space-y-1 group active:scale-90 transition-transform">
               <div className={cn(
                 "w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center transition-all duration-300",
                 liked 
-                  ? "bg-primary/20 border-primary text-primary scale-110" 
+                  ? "bg-primary/20 border-primary text-primary" 
                   : "bg-black/20 border-white/10 text-white"
               )}>
                 <Heart className={cn("w-6 h-6", liked && "fill-current")} />
@@ -130,14 +143,14 @@ const FeedItem = ({ video }: { video: VideoData }) => {
               <span className="text-xs font-bold text-white text-shadow-sm">{likes}</span>
             </button>
 
-            <button className="flex flex-col items-center space-y-1">
+            <button className="flex flex-col items-center space-y-1 active:scale-90 transition-transform">
               <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white">
                 <MessageCircle className="w-6 h-6" />
               </div>
               <span className="text-xs font-bold text-white text-shadow-sm">0</span>
             </button>
 
-            <button onClick={handleShare} className="flex flex-col items-center space-y-1">
+            <button onClick={handleShare} className="flex flex-col items-center space-y-1 active:scale-90 transition-transform">
               <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white">
                 <Share2 className="w-6 h-6" />
               </div>
@@ -180,8 +193,8 @@ export function VerticalFeed() {
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black">
-        <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-        <p className="text-white/40 text-sm font-medium">Loading TokSnap...</p>
+        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+        <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest">Loading Feed...</p>
       </div>
     );
   }
@@ -189,10 +202,10 @@ export function VerticalFeed() {
   if (error) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black p-10 text-center">
-        <AlertCircle className="w-16 h-16 text-destructive mb-4" />
-        <h2 className="text-xl font-bold mb-2">Error loading feed</h2>
-        <p className="text-muted-foreground text-sm mb-6">{error}</p>
-        <button onClick={() => window.location.reload()} className="bg-primary text-primary-foreground px-6 py-2 rounded-full font-bold">Try Again</button>
+        <AlertCircle className="w-12 h-12 text-destructive mb-4" />
+        <h2 className="text-lg font-bold mb-2">Something went wrong</h2>
+        <p className="text-muted-foreground text-xs mb-6">{error}</p>
+        <button onClick={() => window.location.reload()} className="bg-primary text-primary-foreground px-6 py-2 rounded-full text-xs font-bold">Try Again</button>
       </div>
     );
   }
@@ -200,12 +213,12 @@ export function VerticalFeed() {
   if (videos.length === 0) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black p-10 text-center">
-        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
-          <Music2 className="w-10 h-10 text-white/20" />
+        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6">
+          <Play className="w-8 h-8 text-white/20" />
         </div>
-        <h2 className="text-xl font-bold mb-2">No snaps found</h2>
-        <p className="text-muted-foreground text-sm mb-8">Be the first to post a snap!</p>
-        <button onClick={() => window.location.href = '/upload'} className="bg-primary text-primary-foreground px-8 py-3 rounded-full font-bold">Post Something</button>
+        <h2 className="text-lg font-bold mb-2">No snaps yet</h2>
+        <p className="text-muted-foreground text-xs mb-8">Be the first to share a moment!</p>
+        <button onClick={() => window.location.href = '/upload'} className="bg-primary text-primary-foreground px-8 py-3 rounded-full text-xs font-bold shadow-lg shadow-primary/20">Post Now</button>
       </div>
     );
   }
