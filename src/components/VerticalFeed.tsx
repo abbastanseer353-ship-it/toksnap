@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Heart, MessageCircle, Share2, Music2, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, Music2, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VideoData {
@@ -18,12 +18,8 @@ const FeedItem = ({ video }: { video: VideoData }) => {
   const [likes, setLikes] = useState(Math.floor(Math.random() * 9000) + 1000);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // In a real app, you'd use an Intersection Observer to play/pause
-  // For this MVP, we'll use autoPlay and loop
-
   return (
     <div className="relative h-screen w-full snap-start flex items-center justify-center bg-black overflow-hidden">
-      {/* Real Video Content */}
       <video
         ref={videoRef}
         src={video.video_url}
@@ -34,13 +30,10 @@ const FeedItem = ({ video }: { video: VideoData }) => {
         playsInline
       />
 
-      {/* Overlay Gradients for readability */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
 
-      {/* Content Overlay */}
       <div className="absolute inset-0 flex flex-col justify-end p-5 pb-32">
         <div className="flex justify-between items-end">
-          {/* Left Side: Info */}
           <div className="flex-1 max-w-[80%] space-y-3">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 rounded-full border border-white/20 overflow-hidden bg-white/10">
@@ -62,7 +55,6 @@ const FeedItem = ({ video }: { video: VideoData }) => {
             </div>
           </div>
 
-          {/* Right Side: Actions */}
           <div className="flex flex-col items-center space-y-5">
             <button onClick={() => setLiked(!liked)} className="flex flex-col items-center space-y-1 group">
               <div className={cn(
@@ -101,17 +93,32 @@ const FeedItem = ({ video }: { video: VideoData }) => {
 export function VerticalFeed() {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchVideos() {
       try {
+        setLoading(true);
+        setError(null);
+        
         const response = await fetch('/api/videos');
         const data = await response.json();
-        if (Array.isArray(data)) {
-          setVideos(data);
+        
+        console.log("Frontend Fetch Debug:", data);
+
+        if (response.ok) {
+          if (Array.isArray(data)) {
+            setVideos(data);
+          } else {
+            console.error("Unexpected data format:", data);
+            setError("The server returned data in an unexpected format.");
+          }
+        } else {
+          setError(data.details || data.error || "Failed to fetch videos from server.");
         }
-      } catch (error) {
-        console.error("Failed to load videos", error);
+      } catch (err: any) {
+        console.error("Fetch Exception:", err);
+        setError("Network error: Could not reach the video server.");
       } finally {
         setLoading(false);
       }
@@ -124,6 +131,22 @@ export function VerticalFeed() {
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black text-white/40 space-y-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
         <p className="text-xs font-bold uppercase tracking-widest">Loading Snaps...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-white/60 p-10 text-center space-y-4 bg-black">
+        <AlertCircle className="w-12 h-12 text-destructive" />
+        <p className="text-lg font-headline font-bold">Something went wrong</p>
+        <p className="text-sm max-w-xs">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full text-xs font-bold transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
