@@ -1,15 +1,13 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Video, X, Loader2, Sparkles, Tag, ArrowLeft, Upload, Type } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
 import { generateImageMetadata } from "@/ai/flows/generate-image-metadata";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 export default function UploadPage() {
@@ -36,7 +34,6 @@ export default function UploadPage() {
         const dataUri = reader.result as string;
         setPreview(dataUri);
         
-        // Only run AI analysis for images
         if (!isVideo) {
           setIsAnalyzing(true);
           try {
@@ -45,6 +42,7 @@ export default function UploadPage() {
             if (!caption) setCaption(result.altText);
           } catch (error) {
             console.error("AI Analysis failed", error);
+            // Don't block upload if AI fails
           } finally {
             setIsAnalyzing(false);
           }
@@ -64,7 +62,7 @@ export default function UploadPage() {
 
     try {
       const formData = new FormData();
-      formData.append('video', file); // API expects 'video' key for both types currently
+      formData.append('video', file); 
       formData.append('caption', caption || (fileType === 'image' ? 'New Photo' : 'New Video'));
       formData.append('userId', 'user_' + Math.floor(Math.random() * 10000));
 
@@ -77,9 +75,10 @@ export default function UploadPage() {
 
       setUploadProgress(80);
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        throw new Error(responseData.error || 'Upload failed. Check Supabase Policies (RLS).');
       }
 
       setUploadProgress(100);
@@ -94,7 +93,7 @@ export default function UploadPage() {
       toast({
         variant: "destructive",
         title: "Upload Failed",
-        description: error.message || "Something went wrong while uploading.",
+        description: error.message || "Ensure Supabase RLS policies are enabled for Insert.",
       });
       setUploadProgress(0);
     } finally {
@@ -103,14 +102,14 @@ export default function UploadPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background max-w-md mx-auto relative shadow-2xl border-x border-white/5 pb-24">
+    <main className="min-h-screen bg-background max-w-md mx-auto relative shadow-2xl border-x border-white/5 pb-32">
       <header className="p-5 flex items-center justify-between border-b border-white/5 sticky top-0 bg-background/80 backdrop-blur-md z-40">
         <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-white/5 transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <h1 className="text-lg font-headline font-bold">New Snap</h1>
         <Button 
-          disabled={!file || isUploading || isAnalyzing} 
+          disabled={!file || isUploading} 
           onClick={handlePost}
           className="bg-primary text-primary-foreground font-bold h-9 px-6 rounded-full"
         >
@@ -142,25 +141,6 @@ export default function UploadPage() {
                   <span>Choose Media</span>
                 </div>
               </label>
-              
-              <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest font-bold">Or Capture</p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label className="cursor-pointer">
-                  <input type="file" className="hidden" accept="video/*" capture="environment" onChange={handleFileChange} />
-                  <div className="py-3 bg-white/5 hover:bg-white/10 text-center rounded-2xl text-[10px] font-bold transition-all border border-white/10 flex flex-col items-center space-y-1">
-                    <Video className="w-4 h-4 text-accent" />
-                    <span>Video</span>
-                  </div>
-                </label>
-                <label className="cursor-pointer">
-                  <input type="file" className="hidden" accept="image/*" capture="environment" onChange={handleFileChange} />
-                  <div className="py-3 bg-white/5 hover:bg-white/10 text-center rounded-2xl text-[10px] font-bold transition-all border border-white/10 flex flex-col items-center space-y-1">
-                    <Camera className="w-4 h-4 text-primary" />
-                    <span>Photo</span>
-                  </div>
-                </label>
-              </div>
             </div>
           </div>
         ) : (
@@ -184,7 +164,7 @@ export default function UploadPage() {
               {isAnalyzing && (
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center space-y-3">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                  <p className="text-xs font-bold text-white tracking-widest uppercase">Smart Vision Analyzing...</p>
+                  <p className="text-xs font-bold text-white tracking-widest uppercase text-center">AI analyzing for better reach...</p>
                 </div>
               )}
             </div>
