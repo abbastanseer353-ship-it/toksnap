@@ -21,6 +21,9 @@ const FeedItem = ({ video }: { video: VideoData }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Check if the URL is an image or video
+  const isVideo = video.video_url.match(/\.(mp4|webm|ogg|mov)$/i) || !video.video_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -47,7 +50,6 @@ const FeedItem = ({ video }: { video: VideoData }) => {
       if (error) throw error;
     } catch (err) {
       console.error("Like update failed:", err);
-      // Rollback UI on error
       setLiked(!isAdding);
       setLikes(likes);
     }
@@ -56,7 +58,7 @@ const FeedItem = ({ video }: { video: VideoData }) => {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'TokSnap Video',
+        title: 'TokSnap',
         text: video.caption,
         url: window.location.href,
       }).catch(console.error);
@@ -65,21 +67,30 @@ const FeedItem = ({ video }: { video: VideoData }) => {
 
   return (
     <div className="relative h-screen w-full snap-start flex items-center justify-center bg-black overflow-hidden group">
-      <video
-        ref={videoRef}
-        src={video.video_url}
-        className="absolute inset-0 w-full h-full object-cover"
-        loop
-        muted
-        autoPlay
-        playsInline
-        onClick={togglePlay}
-      />
-      
-      {!isPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-          <Play className="w-16 h-16 text-white/50 fill-white/20" />
-        </div>
+      {isVideo ? (
+        <>
+          <video
+            ref={videoRef}
+            src={video.video_url}
+            className="absolute inset-0 w-full h-full object-cover"
+            loop
+            muted
+            autoPlay
+            playsInline
+            onClick={togglePlay}
+          />
+          {!isPlaying && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+              <Play className="w-16 h-16 text-white/50 fill-white/20" />
+            </div>
+          )}
+        </>
+      ) : (
+        <img 
+          src={video.video_url} 
+          className="absolute inset-0 w-full h-full object-cover" 
+          alt="Snap content"
+        />
       )}
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none" />
@@ -99,12 +110,9 @@ const FeedItem = ({ video }: { video: VideoData }) => {
                 <h3 className="font-headline font-bold text-base text-white text-shadow-sm">@user_{video.user_id.slice(0, 5)}</h3>
                 <div className="flex items-center space-x-1 text-primary">
                   <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Original Sound</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">{isVideo ? 'Original Sound' : 'Snap Moment'}</span>
                 </div>
               </div>
-              <button className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-[10px] font-bold shadow-lg active:scale-95 transition-transform ml-2">
-                Follow
-              </button>
             </div>
             <p className="text-sm text-white/90 line-clamp-2 leading-relaxed text-shadow-sm">{video.caption}</p>
           </div>
@@ -114,23 +122,23 @@ const FeedItem = ({ video }: { video: VideoData }) => {
               <div className={cn(
                 "w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center transition-all duration-300",
                 liked 
-                  ? "bg-primary/20 border-primary text-primary scale-110 shadow-[0_0_15px_rgba(var(--primary),0.3)]" 
-                  : "bg-black/20 border-white/10 text-white hover:bg-black/40"
+                  ? "bg-primary/20 border-primary text-primary scale-110" 
+                  : "bg-black/20 border-white/10 text-white"
               )}>
-                <Heart className={cn("w-6 h-6 transition-all", liked && "fill-current")} />
+                <Heart className={cn("w-6 h-6", liked && "fill-current")} />
               </div>
               <span className="text-xs font-bold text-white text-shadow-sm">{likes}</span>
             </button>
 
             <button className="flex flex-col items-center space-y-1">
-              <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-black/40 transition-colors">
+              <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white">
                 <MessageCircle className="w-6 h-6" />
               </div>
               <span className="text-xs font-bold text-white text-shadow-sm">0</span>
             </button>
 
             <button onClick={handleShare} className="flex flex-col items-center space-y-1">
-              <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-black/40 transition-colors">
+              <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white">
                 <Share2 className="w-6 h-6" />
               </div>
             </button>
@@ -160,8 +168,8 @@ export function VerticalFeed() {
         if (sbError) throw sbError;
         setVideos(data || []);
       } catch (err: any) {
-        console.error("Supabase error:", err);
-        setError(err.message || "Could not load videos.");
+        console.error("Supabase fetch error:", err);
+        setError(err.message || "Could not load feed.");
       } finally {
         setLoading(false);
       }
@@ -173,7 +181,7 @@ export function VerticalFeed() {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black">
         <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-        <p className="text-white/40 text-sm font-medium animate-pulse">Loading Feed...</p>
+        <p className="text-white/40 text-sm font-medium">Loading TokSnap...</p>
       </div>
     );
   }
@@ -182,14 +190,9 @@ export function VerticalFeed() {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black p-10 text-center">
         <AlertCircle className="w-16 h-16 text-destructive mb-4" />
-        <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+        <h2 className="text-xl font-bold mb-2">Error loading feed</h2>
         <p className="text-muted-foreground text-sm mb-6">{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="bg-primary text-primary-foreground px-6 py-2 rounded-full font-bold"
-        >
-          Try Again
-        </button>
+        <button onClick={() => window.location.reload()} className="bg-primary text-primary-foreground px-6 py-2 rounded-full font-bold">Try Again</button>
       </div>
     );
   }
@@ -200,16 +203,9 @@ export function VerticalFeed() {
         <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
           <Music2 className="w-10 h-10 text-white/20" />
         </div>
-        <h2 className="text-xl font-bold mb-2">No videos yet</h2>
-        <p className="text-muted-foreground text-sm mb-8 max-w-[250px]">
-          Be the first one to upload a snap and start the trend!
-        </p>
-        <button 
-          onClick={() => window.location.href = '/upload'}
-          className="bg-primary text-primary-foreground px-8 py-3 rounded-full font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all"
-        >
-          Upload Your First Snap
-        </button>
+        <h2 className="text-xl font-bold mb-2">No snaps found</h2>
+        <p className="text-muted-foreground text-sm mb-8">Be the first to post a snap!</p>
+        <button onClick={() => window.location.href = '/upload'} className="bg-primary text-primary-foreground px-8 py-3 rounded-full font-bold">Post Something</button>
       </div>
     );
   }

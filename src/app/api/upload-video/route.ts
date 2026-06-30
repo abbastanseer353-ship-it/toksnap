@@ -6,11 +6,11 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('video') as File;
-    const userId = formData.get('userId') || 'anon_user'; 
+    const userId = formData.get('userId') || 'user_' + Math.floor(Math.random() * 10000);
     const caption = formData.get('caption') || 'My TokSnap!';
 
     if (!file) {
-      return NextResponse.json({ error: 'No file selected' }, { status: 400 });
+      return NextResponse.json({ error: 'Please select a video or photo.' }, { status: 400 });
     }
 
     // 1. Upload file to Supabase Storage
@@ -18,7 +18,6 @@ export async function POST(request: Request) {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
 
-    // Ensure we are uploading to the 'videos' bucket
     const { data: uploadData, error: uploadError } = await supabase
       .storage
       .from('videos')
@@ -30,7 +29,7 @@ export async function POST(request: Request) {
     if (uploadError) {
       console.error('Storage Upload Error:', uploadError);
       return NextResponse.json({ 
-        error: `Storage Error: ${uploadError.message}. Make sure the "videos" bucket exists and has a Public Policy (INSERT allowed).` 
+        error: `Upload failed: ${uploadError.message}. Make sure the "videos" bucket exists and is Public.` 
       }, { status: 500 });
     }
 
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
       .from('videos')
       .getPublicUrl(filePath);
 
-    // 3. Save to Database
+    // 3. Save metadata to Database
     const { data: dbData, error: dbError } = await supabase
       .from('videos')
       .insert([
@@ -55,9 +54,8 @@ export async function POST(request: Request) {
 
     if (dbError) {
       console.error('Database Insert Error:', dbError);
-      // Even if DB fails, the file is uploaded. You might want to delete it or just report error.
       return NextResponse.json({ 
-        error: `Database Error: ${dbError.message}. Ensure the RLS Policy for "videos" table allows INSERT.` 
+        error: `Database error: ${dbError.message}. Make sure RLS Policies are set to allow Insert.` 
       }, { status: 500 });
     }
 
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Critical Upload Error:', error);
     return NextResponse.json({ 
-      error: error.message || 'Something went wrong during upload' 
+      error: error.message || 'Something went wrong.' 
     }, { status: 500 });
   }
 }
