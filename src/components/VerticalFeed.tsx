@@ -11,12 +11,41 @@ interface VideoData {
   video_url: string;
   caption: string;
   created_at: string;
+  likes_count?: number; // Added to support DB likes
 }
 
 const FeedItem = ({ video }: { video: VideoData }) => {
   const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(Math.floor(Math.random() * 9000) + 1000);
+  const [likes, setLikes] = useState(video.likes_count || Math.floor(Math.random() * 9000) + 1000);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handleLike = async () => {
+    const isAdding = !liked;
+    setLiked(isAdding);
+    setLikes(prev => isAdding ? prev + 1 : prev - 1);
+
+    try {
+      await fetch('/api/videos/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: video.id, increment: isAdding ? 1 : -1 }),
+      });
+    } catch (err) {
+      console.error("Failed to sync like with server", err);
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'TokSnap Video',
+        text: video.caption,
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      alert("Sharing is not supported on this browser.");
+    }
+  };
 
   return (
     <div className="relative h-screen w-full snap-start flex items-center justify-center bg-black overflow-hidden">
@@ -40,7 +69,7 @@ const FeedItem = ({ video }: { video: VideoData }) => {
                 <img 
                   src={`https://picsum.photos/seed/${video.user_id}/100/100`} 
                   className="w-full h-full object-cover" 
-                  alt="avatar" 
+                  alt={`User ${video.user_id} avatar`} 
                 />
               </div>
               <h3 className="font-headline font-bold text-base text-white">@user_{video.user_id}</h3>
@@ -51,19 +80,21 @@ const FeedItem = ({ video }: { video: VideoData }) => {
             </p>
             <div className="flex items-center space-x-2 text-white/70">
               <Music2 className="w-3.5 h-3.5 animate-pulse-subtle" />
-              <span className="text-xs font-medium truncate italic">Original Sound - TokSnap User</span>
+              <span className="text-xs font-medium truncate italic">Original Sound - @user_{video.user_id}</span>
             </div>
           </div>
 
           <div className="flex flex-col items-center space-y-5">
-            <button onClick={() => setLiked(!liked)} className="flex flex-col items-center space-y-1 group">
+            <button onClick={handleLike} className="flex flex-col items-center space-y-1 group">
               <div className={cn(
                 "w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all active:scale-90",
-                liked ? "text-primary" : "text-white"
+                liked ? "text-primary border-primary/40" : "text-white"
               )}>
                 <Heart className={cn("w-6 h-6", liked && "fill-current")} />
               </div>
-              <span className="text-xs font-bold text-white text-shadow-sm">{(likes/1000).toFixed(1)}k</span>
+              <span className="text-xs font-bold text-white text-shadow-sm">
+                {likes >= 1000 ? `${(likes/1000).toFixed(1)}k` : likes}
+              </span>
             </button>
 
             <button className="flex flex-col items-center space-y-1 group">
@@ -73,7 +104,7 @@ const FeedItem = ({ video }: { video: VideoData }) => {
               <span className="text-xs font-bold text-white text-shadow-sm">{Math.floor(likes / 45)}</span>
             </button>
 
-            <button className="flex flex-col items-center space-y-1 group">
+            <button onClick={handleShare} className="flex flex-col items-center space-y-1 group">
               <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center active:scale-90 text-white">
                 <Share2 className="w-6 h-6" />
               </div>
@@ -104,20 +135,16 @@ export function VerticalFeed() {
         const response = await fetch('/api/videos');
         const data = await response.json();
         
-        console.log("Frontend Fetch Debug:", data);
-
         if (response.ok) {
           if (Array.isArray(data)) {
             setVideos(data);
           } else {
-            console.error("Unexpected data format:", data);
             setError("The server returned data in an unexpected format.");
           }
         } else {
-          setError(data.details || data.error || "Failed to fetch videos from server.");
+          setError(data.details || data.error || "Failed to fetch videos.");
         }
       } catch (err: any) {
-        console.error("Fetch Exception:", err);
         setError("Network error: Could not reach the video server.");
       } finally {
         setLoading(false);
