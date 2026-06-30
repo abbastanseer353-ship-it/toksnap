@@ -1,18 +1,19 @@
+
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import { supabase } from '@/lib/supabaseClient';
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: '444632581763345',
-  api_secret: '2EM3gmYl4vCBQF_eLvN7MK40vj4'
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('video') as File;
-    const userId = formData.get('userId') || '1'; // Default user ID for testing
+    const userId = formData.get('userId') || 'anon_user'; 
     const caption = formData.get('caption') || 'My TokSnap video!';
 
     if (!file) {
@@ -36,13 +37,24 @@ export async function POST(request: Request) {
 
     const videoUrl = uploadResult.secure_url;
 
-    // Save to MySQL Database
-    const [result] = await pool.execute(
-      'INSERT INTO videos (user_id, video_url, caption, created_at) VALUES (?, ?, ?, NOW())',
-      [userId, videoUrl, caption]
-    );
+    // Save to Supabase (Replacing MySQL)
+    const { data, error } = await supabase
+      .from('videos')
+      .insert([
+        { 
+          user_id: userId, 
+          video_url: videoUrl, 
+          caption: caption,
+          likes_count: 0
+        }
+      ])
+      .select();
 
-    return NextResponse.json({ success: true, url: videoUrl, dbResult: result });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json({ success: true, url: videoUrl, data });
   } catch (error: any) {
     console.error('Upload Error:', error);
     return NextResponse.json({ error: error.message || 'Something went wrong' }, { status: 500 });
