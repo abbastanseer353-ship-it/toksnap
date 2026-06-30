@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
 
+    // Ensure we are uploading to the 'videos' bucket
     const { data: uploadData, error: uploadError } = await supabase
       .storage
       .from('videos')
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     if (uploadError) {
       console.error('Storage Upload Error:', uploadError);
       return NextResponse.json({ 
-        error: `Storage Error: ${uploadError.message}. Make sure the "videos" bucket exists and has a Public Policy.` 
+        error: `Storage Error: ${uploadError.message}. Make sure the "videos" bucket exists and has a Public Policy (INSERT allowed).` 
       }, { status: 500 });
     }
 
@@ -54,8 +55,9 @@ export async function POST(request: Request) {
 
     if (dbError) {
       console.error('Database Insert Error:', dbError);
+      // Even if DB fails, the file is uploaded. You might want to delete it or just report error.
       return NextResponse.json({ 
-        error: `Database Error: ${dbError.message}. Ensure the RLS Policy for "videos" table is enabled.` 
+        error: `Database Error: ${dbError.message}. Ensure the RLS Policy for "videos" table allows INSERT.` 
       }, { status: 500 });
     }
 
