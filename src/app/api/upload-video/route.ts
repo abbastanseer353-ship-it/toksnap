@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get('video') as File;
     const userId = formData.get('userId') || 'anon_user'; 
-    const caption = formData.get('caption') || 'My TokSnap video!';
+    const caption = formData.get('caption') || 'My TokSnap!';
 
     if (!file) {
       return NextResponse.json({ error: 'No file selected' }, { status: 400 });
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
     // 1. Upload file to Supabase Storage
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
 
     const { data: uploadData, error: uploadError } = await supabase
@@ -27,16 +27,19 @@ export async function POST(request: Request) {
       });
 
     if (uploadError) {
-      throw uploadError;
+      console.error('Storage Upload Error:', uploadError);
+      return NextResponse.json({ 
+        error: `Storage Error: ${uploadError.message}. Make sure the "videos" bucket exists and has a Public Policy.` 
+      }, { status: 500 });
     }
 
-    // 2. Get Public URL for the uploaded file
+    // 2. Get Public URL
     const { data: { publicUrl } } = supabase
       .storage
       .from('videos')
       .getPublicUrl(filePath);
 
-    // 3. Save metadata to Supabase 'videos' table
+    // 3. Save to Database
     const { data: dbData, error: dbError } = await supabase
       .from('videos')
       .insert([
@@ -50,12 +53,15 @@ export async function POST(request: Request) {
       .select();
 
     if (dbError) {
-      throw dbError;
+      console.error('Database Insert Error:', dbError);
+      return NextResponse.json({ 
+        error: `Database Error: ${dbError.message}. Ensure the RLS Policy for "videos" table is enabled.` 
+      }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, url: publicUrl, data: dbData });
   } catch (error: any) {
-    console.error('Upload Error:', error);
+    console.error('Critical Upload Error:', error);
     return NextResponse.json({ 
       error: error.message || 'Something went wrong during upload' 
     }, { status: 500 });
