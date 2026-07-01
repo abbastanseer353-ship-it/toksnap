@@ -1,12 +1,11 @@
 
-'use client';
+"use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Heart, MessageCircle, Share2, Music2, Loader2, AlertCircle, Play, Download, X, Send } from "lucide-react";
+import Link from "next/link";
+import { Heart, MessageCircle, Share2, Music2, Loader2, AlertCircle, Play, Bookmark, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 
 interface VideoData {
   id: number;
@@ -15,13 +14,16 @@ interface VideoData {
   caption: string;
   created_at: string;
   likes_count: number;
+  profiles: {
+    username: string;
+    avatar_url: string;
+  } | null;
 }
 
 const FeedItem = ({ video }: { video: VideoData }) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(video.likes_count || 0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [showHeart, setShowHeart] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const isVideo = video.video_url.match(/\.(mp4|webm|ogg|mov)$/i) || !video.video_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
@@ -43,11 +45,6 @@ const FeedItem = ({ video }: { video: VideoData }) => {
     const newCount = isAdding ? likes + 1 : Math.max(0, likes - 1);
     setLikes(newCount);
 
-    if (isAdding) {
-      setShowHeart(true);
-      setTimeout(() => setShowHeart(false), 800);
-    }
-
     try {
       const { error } = await supabase
         .from('videos')
@@ -57,6 +54,8 @@ const FeedItem = ({ video }: { video: VideoData }) => {
       if (error) throw error;
     } catch (err) {
       console.error("Like update failed:", err);
+      setLiked(!isAdding);
+      setLikes(likes);
     }
   };
 
@@ -67,28 +66,6 @@ const FeedItem = ({ video }: { video: VideoData }) => {
         text: video.caption,
         url: window.location.href,
       }).catch(console.error);
-    } else {
-      // Fallback: Copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
-    }
-  };
-
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(video.video_url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `toksnap-${video.id}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Download failed:", err);
-      alert("Could not download video.");
     }
   };
 
@@ -101,14 +78,13 @@ const FeedItem = ({ video }: { video: VideoData }) => {
             src={video.video_url}
             className="absolute inset-0 w-full h-full object-cover"
             loop
-            muted
             autoPlay
             playsInline
             onClick={togglePlay}
           />
           {!isPlaying && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-              <Play className="w-16 h-16 text-white/50 fill-white/20" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none z-10">
+              <Play className="w-20 h-20 text-white/50 fill-white/20" />
             </div>
           )}
         </>
@@ -120,94 +96,65 @@ const FeedItem = ({ video }: { video: VideoData }) => {
         />
       )}
 
-      {showHeart && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
-          <Heart className="w-32 h-32 text-primary fill-primary opacity-80 animate-ping" />
-        </div>
-      )}
-
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
       
-      <div className="absolute inset-0 flex flex-col justify-end p-5 pb-32 pointer-events-none">
-        <div className="flex justify-between items-end">
-          <div className="flex-1 max-w-[80%] space-y-3 pointer-events-auto">
+      <div className="absolute bottom-0 left-0 right-0 p-5 pb-24 flex justify-between items-end z-20">
+          <div className="max-w-[70%] space-y-3">
+            <h3 className="font-bold text-lg text-white text-shadow-md">@{video.profiles?.username || `user_${video.user_id.slice(0,5)}`}</h3>
+            <p className="text-sm text-white/95 line-clamp-3 leading-relaxed text-shadow-sm">{video.caption}</p>
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 rounded-full border-2 border-primary overflow-hidden bg-white/10">
+              <Music2 className="w-5 h-5 text-white" />
+              <p className="text-sm font-semibold text-white text-shadow-sm">{isVideo ? 'Original Sound' : 'Snap Moment'}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center space-y-6">
+            <Link href={`/profile/${video.user_id}`} className="relative block group">
+              <div className="w-14 h-14 rounded-full border-2 border-white overflow-hidden bg-white/10 shadow-lg transition-transform duration-300 group-hover:scale-110">
                 <img 
-                  src={`https://picsum.photos/seed/${video.user_id}/100/100`} 
+                  src={video.profiles?.avatar_url || `https://picsum.photos/seed/${video.user_id}/100/100`} 
                   className="w-full h-full object-cover" 
                   alt="avatar" 
                 />
               </div>
-              <div>
-                <h3 className="font-headline font-bold text-base text-white text-shadow-sm">@user_{video.user_id.slice(-4)}</h3>
-                <div className="flex items-center space-x-1 text-primary">
-                  <Music2 className="w-3 h-3 animate-spin-slow" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Original Sound - TokSnap</span>
-                </div>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-black group-hover:bg-white transition-colors duration-300">
+                <Plus className="w-4 h-4 text-white group-hover:text-primary transition-colors duration-300" strokeWidth={3} />
               </div>
-            </div>
-            <p className="text-sm text-white/90 line-clamp-2 leading-relaxed text-shadow-sm font-medium">{video.caption}</p>
-          </div>
+            </Link>
 
-          <div className="flex flex-col items-center space-y-5 pointer-events-auto">
-            <button onClick={handleLike} className="flex flex-col items-center space-y-1 active:scale-90 transition-transform">
+            <button onClick={handleLike} className="flex flex-col items-center space-y-1 group">
               <div className={cn(
-                "w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center transition-all",
-                liked ? "bg-primary/30 border-primary text-primary" : "bg-black/40 border-white/20 text-white"
+                "w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center transition-all duration-300 transform group-hover:scale-110",
+                liked 
+                  ? "bg-rose-500/80 border-rose-400 text-white" 
+                  : "bg-black/20 border-white/10 text-white"
               )}>
                 <Heart className={cn("w-6 h-6", liked && "fill-current")} />
               </div>
-              <span className="text-[10px] font-bold text-white">{likes}</span>
+              <span className="text-xs font-bold text-white text-shadow-sm">{likes}</span>
             </button>
 
-            <Sheet>
-              <SheetTrigger asChild>
-                <button className="flex flex-col items-center space-y-1 active:scale-90 transition-transform">
-                  <div className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
-                    <MessageCircle className="w-6 h-6" />
-                  </div>
-                  <span className="text-[10px] font-bold text-white">0</span>
-                </button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-[70vh] rounded-t-[2.5rem] bg-background border-t-0 p-0 overflow-hidden">
-                <div className="p-6 flex flex-col h-full">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Comments</h3>
-                    <X className="w-5 h-5 opacity-40" />
-                  </div>
-                  <div className="flex-1 flex flex-col items-center justify-center space-y-4 opacity-30">
-                    <MessageCircle className="w-12 h-12" />
-                    <p className="text-xs font-bold uppercase">No comments yet</p>
-                  </div>
-                  <div className="mt-auto pb-8 flex items-center space-x-3">
-                    <input 
-                      className="flex-1 bg-white/5 border border-white/10 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                      placeholder="Add a comment..."
-                    />
-                    <button className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground">
-                      <Send className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
+            <button className="flex flex-col items-center space-y-1 group">
+              <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white transform group-hover:scale-110 transition-transform duration-300">
+                <MessageCircle className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-bold text-white text-shadow-sm">0</span>
+            </button>
 
-            <button onClick={handleShare} className="flex flex-col items-center space-y-1 active:scale-90 transition-transform">
-              <div className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
+            <button className="flex flex-col items-center space-y-1 group">
+              <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white transform group-hover:scale-110 transition-transform duration-300">
+                <Bookmark className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-bold text-white text-shadow-sm">Save</span>
+            </button>
+
+            <button onClick={handleShare} className="flex flex-col items-center space-y-1 group">
+              <div className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white transform group-hover:scale-110 transition-transform duration-300">
                 <Share2 className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold text-white">Share</span>
-            </button>
-
-            <button onClick={handleDownload} className="flex flex-col items-center space-y-1 active:scale-90 transition-transform opacity-70">
-              <div className="w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white">
-                <Download className="w-5 h-5" />
-              </div>
-              <span className="text-[8px] font-bold text-white uppercase tracking-tighter">Save</span>
+               <span className="text-xs font-bold text-white text-shadow-sm">Share</span>
             </button>
           </div>
-        </div>
       </div>
     </div>
   );
@@ -222,14 +169,17 @@ export function VerticalFeed() {
     async function fetchVideos() {
       try {
         setLoading(true);
+        setError(null);
+        
         const { data, error: sbError } = await supabase
           .from('videos')
-          .select('*')
+          .select('*, profiles(username, avatar_url)')
           .order('created_at', { ascending: false });
         
         if (sbError) throw sbError;
         setVideos(data || []);
       } catch (err: any) {
+        console.error("Supabase fetch error:", err);
         setError(err.message || "Could not load feed.");
       } finally {
         setLoading(false);
@@ -241,21 +191,32 @@ export function VerticalFeed() {
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-        <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest">TokSnap is loading...</p>
+        <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+        <p className="text-white/40 text-sm font-medium">Loading TokSnap...</p>
       </div>
     );
   }
 
-  if (error || videos.length === 0) {
+  if (error) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-black p-10 text-center">
-        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-          <Play className="w-10 h-10 text-primary" />
+        <AlertCircle className="w-16 h-16 text-destructive mb-4" />
+        <h2 className="text-xl font-bold mb-2">Error loading feed</h2>
+        <p className="text-muted-foreground text-sm mb-6">{error}</p>
+        <button onClick={() => window.location.reload()} className="bg-primary text-primary-foreground px-6 py-2 rounded-full font-bold">Try Again</button>
+      </div>
+    );
+  }
+
+  if (videos.length === 0) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-black p-10 text-center">
+        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
+          <Music2 className="w-10 h-10 text-white/20" />
         </div>
-        <h2 className="text-xl font-bold mb-2">No videos yet</h2>
-        <p className="text-muted-foreground text-sm mb-8">Be the first to share a moment with the world!</p>
-        <Button onClick={() => window.location.href = '/upload'} className="bg-primary px-8 rounded-full font-bold">Post Now</Button>
+        <h2 className="text-xl font-bold mb-2">No snaps found</h2>
+        <p className="text-muted-foreground text-sm mb-8">Be the first to post a snap!</p>
+        <button onClick={() => window.location.href = '/upload'} className="bg-primary text-primary-foreground px-8 py-3 rounded-full font-bold">Post Something</button>
       </div>
     );
   }
