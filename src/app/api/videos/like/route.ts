@@ -1,26 +1,19 @@
-
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import supabase from '@/lib/supabaseClient';
 
 export async function POST(request: Request) {
   try {
-    const { videoId, increment } = await request.json();
+    const { videoId, userId } = await request.json();
 
-    if (!videoId) {
-      return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
-    }
+    const { data, error } = await supabase
+      .from('likes')
+      .insert([{ video_id: videoId, user_id: userId }]);
 
-    // Attempt to update the likes_count column. 
-    // Note: This assumes you have added a 'likes_count' column to your 'videos' table.
-    // SQL: ALTER TABLE videos ADD COLUMN likes_count INT DEFAULT 0;
-    const [result] = await pool.execute(
-      'UPDATE videos SET likes_count = GREATEST(0, likes_count + ?) WHERE id = ?',
-      [increment, videoId]
-    );
+    if (error) throw error;
 
-    return NextResponse.json({ success: true, result });
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
-    console.error('Like Update Error:', error);
-    return NextResponse.json({ error: 'Failed to update like count', details: error.message }, { status: 500 });
+    console.error('LIKE ERROR:', error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

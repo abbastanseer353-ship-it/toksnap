@@ -1,22 +1,22 @@
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import supabase from '@/lib/supabaseClient';
 
 export async function GET() {
   try {
-    // Attempt to fetch data
-    const [rows] = await pool.execute('SELECT * FROM videos ORDER BY created_at DESC');
-    
-    // Log the result for debugging in the server console
-    console.log(`API Fetch: Successfully retrieved ${Array.isArray(rows) ? rows.length : 0} videos.`);
-    
+    const { data: rows, error } = await supabase
+      .from('videos')
+      .select('*');
+
+    if (error) throw error;
+
+    console.log('API Fetch: Successfully fetched videos');
     return NextResponse.json(rows);
   } catch (error: any) {
-    // Log detailed error to server console
-    console.error('CRITICAL DATABASE ERROR:', error);
-    
+    console.error('CRITICAL DATABASE ERROR:', error.message);
     return NextResponse.json(
-      { error: 'Database connection failed', details: error.message }, 
+      { error: 'Database connection failed', details: error.message },
       { status: 500 }
     );
   }
 }
+

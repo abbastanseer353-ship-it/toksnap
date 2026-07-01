@@ -1,3 +1,4 @@
+git push -u origin main
 
 "use client";
 
