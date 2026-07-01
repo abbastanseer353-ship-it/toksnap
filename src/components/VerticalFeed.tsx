@@ -1,5 +1,3 @@
-git push -u origin main
-
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
